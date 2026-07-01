@@ -1,0 +1,8 @@
+pyautogen
+langchain
+chromadb
+sentence-transformers
+pymupdf
+pdfplumber
+openai
+autogen
