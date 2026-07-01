@@ -8,6 +8,44 @@ Small Python RAG app. Ask questions about insurance PDFs, get cited answers. Use
 PDFs → parse → chunk → embed → ChromaDB → agent retrieves → LLM answers
 ```
 
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Config["config.py"]
+        CFG["Settings<br/>OPENAI_API_KEY · EMBEDDING_MODEL<br/>CHUNK_SIZE / OVERLAP · paths"]
+    end
+
+    subgraph Indexing["Indexing Pipeline — scripts/run_indexer.py"]
+        PDFS[("pdfs/ *.pdf")]
+        PARSE["parse_pdf<br/>pdfplumber: text + tables"]
+        CHUNK["chunk_text<br/>overlapping chunks"]
+        IDX["index_chunks<br/>add docs + ids + metadata"]
+        PDFS --> PARSE --> CHUNK --> IDX
+    end
+
+    subgraph DB["Vector Store — src/db_management/chroma_db.py"]
+        EMB["SentenceTransformer<br/>all-MiniLM-L6-v2"]
+        CHROMA[("ChromaDB<br/>PersistentClient<br/>collection: insurance_docs")]
+        EMB --- CHROMA
+    end
+
+    subgraph RAG["Query Flow — main.py"]
+        Q["User question<br/>e.g. 'what are 529 SAVINGS PLANS?'"]
+        PROXY["RetrieveUserProxyAgent<br/>(AutoGen) — retrieves context"]
+        ASSIST["AssistantAgent<br/>gpt-4o-mini — cites & answers"]
+        ANS["Grounded answer"]
+        Q --> PROXY --> ASSIST --> ANS
+    end
+
+    IDX --> CHROMA
+    CFG -.-> Indexing
+    CFG -.-> RAG
+    CFG -.-> DB
+    PROXY <-->|semantic search| CHROMA
+    CHUNK -. embeds via .-> EMB
+```
+
 **1. Index** (`scripts/run_indexer.py`) — run once first:
 
 - `process_single_pdf` (`src/data_processing/processor.py`) — pdfplumber pulls text + tables per page, then `RecursiveCharacterTextSplitter` cuts into 1000-char chunks, 200 overlap.
