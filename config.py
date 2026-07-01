@@ -41,18 +41,19 @@
 # )
 
 import os
-# === Anthropic Claude API Key ===
-# Set this externally, e.g.:
-#   Unix: export ANTHROPIC_API_KEY="your-anthropic-key"
-#   Windows PowerShell: $env:ANTHROPIC_API_KEY="your-anthropic-key"
+# === OpenAI API Key ===
+# Set this externally (never hardcode):
+#   Unix:  export OPENAI_API_KEY="your-key"
+#   Windows PowerShell:  $env:OPENAI_API_KEY="your-key"
+# Only required for asking questions (the LLM step). Indexing uses a local
+# embedding model and needs no API key.
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY environment variable is required to use Claude.")
 
-# === LLM Configuration (Claude) ===
+# === LLM Configuration ===
+LLM_MODEL = "gpt-4o-mini"
 LLM_CONFIG_LIST = [
     {
-        "model": "gpt-4o-mini",  # or another available Claude 3/4 variant; check Anthropic console for latest
+        "model": LLM_MODEL,
         "api_key": OPENAI_API_KEY,
     },
 ]
@@ -64,7 +65,10 @@ LLM_CONFIG_LIST = [
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 PDF_SOURCE_PATH = os.path.join(PROJECT_ROOT, "pdfs/")
 CHROMA_DB_PATH = os.path.join(PROJECT_ROOT, "chroma_db/")
-CHROMA_COLLECTION_NAME = "insurance_docs"
+CHROMA_COLLECTION_NAME = "documents"
+
+# Number of chunks to retrieve per question (across ALL indexed PDFs).
+TOP_K = 8
 
 # === Embedding model ===
 # Claude does not provide its own embeddings. Two options:
@@ -80,7 +84,8 @@ CHUNK_OVERLAP = 200
 
 # === Assistant Prompt ===
 ASSISTANT_SYSTEM_MESSAGE = (
-    "You are an expert assistant for answering questions about insurance policies. "
-    "You will be provided with relevant document snippets to answer the user's questions. "
-    "Always cite the document snippet you are using to formulate your answer."
+    "You are a helpful assistant that answers questions using only the provided "
+    "document snippets. Each snippet is labeled with its source file. Base your "
+    "answer strictly on these snippets and cite the source file(s) you used. "
+    "If the answer is not contained in the snippets, say you don't know."
 )

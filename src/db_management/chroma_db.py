@@ -26,7 +26,8 @@ def index_chunks(collection: chromadb.Collection, chunks: List[str], pdf_path: s
         return
         
     ids = [f"{pdf_path}_{i}" for i in range(len(chunks))]
-    collection.add(
+    # upsert so re-running the indexer after adding PDFs is idempotent
+    collection.upsert(
         documents=chunks,
         ids=ids,
         metadatas=[{"source": pdf_path} for _ in chunks]

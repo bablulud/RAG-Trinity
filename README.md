@@ -8,85 +8,103 @@ Small Python RAG app. Ask questions about insurance PDFs, get cited answers. Use
 PDFs → parse → chunk → embed → ChromaDB → agent retrieves → LLM answers
 ```
 
-## Architecture
+## Architecture — how each RAG concept maps to the code
 
 ```mermaid
-flowchart TD
-    subgraph Config["config.py"]
-        CFG["Settings<br/>OPENAI_API_KEY · EMBEDDING_MODEL<br/>CHUNK_SIZE / OVERLAP · paths"]
+---
+title: "RAG-Trinity — how each RAG concept maps to the code"
+---
+flowchart LR
+    subgraph INDEX["INDEXING · offline, run once — scripts/run_indexer.py"]
+        direction LR
+        D["Documents<br/><i>pdfs/*.pdf</i>"]
+        L["Load / Parse<br/><i>parse_pdf · pdfplumber</i><br/>processor.py"]
+        C["Chunk<br/><i>chunk_text · 1000 / 200</i><br/>processor.py"]
+        E1["Embed<br/><i>all-MiniLM-L6-v2</i><br/>chroma_db.py"]
+        D --> L --> C --> E1
     end
 
-    subgraph Indexing["Indexing Pipeline — scripts/run_indexer.py"]
-        PDFS[("pdfs/ *.pdf")]
-        PARSE["parse_pdf<br/>pdfplumber: text + tables"]
-        CHUNK["chunk_text<br/>overlapping chunks"]
-        IDX["index_chunks<br/>add docs + ids + metadata"]
-        PDFS --> PARSE --> CHUNK --> IDX
+    VDB[("Vector Store<br/><b>ChromaDB</b><br/>collection: documents")]
+
+    subgraph QUERY["QUERY · online, per question — main.py"]
+        direction LR
+        Q["Question<br/><i>interactive / one-shot</i>"]
+        E2["Embed query<br/><i>all-MiniLM-L6-v2</i>"]
+        R["Retrieve top-K<br/><i>collection.query</i><br/>main.py"]
+        A["Augment<br/><i>build_context → prompt</i><br/>main.py"]
+        G["Generate<br/><i>OpenAI gpt-4o-mini</i><br/>main.py"]
+        ANS["Answer + citations"]
+        Q --> E2 --> R --> A --> G --> ANS
     end
 
-    subgraph DB["Vector Store — src/db_management/chroma_db.py"]
-        EMB["SentenceTransformer<br/>all-MiniLM-L6-v2"]
-        CHROMA[("ChromaDB<br/>PersistentClient<br/>collection: insurance_docs")]
-        EMB --- CHROMA
-    end
+    E1 -->|upsert vectors| VDB
+    E2 -.->|same embedding space| VDB
+    VDB -->|top-K chunks| R
 
-    subgraph RAG["Query Flow — main.py"]
-        Q["User question<br/>e.g. 'what are 529 SAVINGS PLANS?'"]
-        PROXY["RetrieveUserProxyAgent<br/>(AutoGen) — retrieves context"]
-        ASSIST["AssistantAgent<br/>gpt-4o-mini — cites & answers"]
-        ANS["Grounded answer"]
-        Q --> PROXY --> ASSIST --> ANS
-    end
-
-    IDX --> CHROMA
-    CFG -.-> Indexing
-    CFG -.-> RAG
-    CFG -.-> DB
-    PROXY <-->|semantic search| CHROMA
-    CHUNK -. embeds via .-> EMB
+    classDef index fill:#d6f5d6,stroke:#2e7d32,color:#1b3d1b;
+    classDef query fill:#ffe6c7,stroke:#e08a00,color:#5a3d00;
+    classDef store fill:#e7d6ff,stroke:#7b3fe4,color:#2e1a4a;
+    class D,L,C,E1 index;
+    class Q,E2,R,A,G,ANS query;
+    class VDB store;
 ```
 
-**1. Index** (`scripts/run_indexer.py`) — run once first:
+> Green = offline indexing (retrieve step is built here), purple = the shared vector store, orange = online query (retrieve → augment → generate). Each box names the RAG concept and the code that implements it.
 
-- `process_single_pdf` (`src/data_processing/processor.py`) — pdfplumber pulls text + tables per page, then `RecursiveCharacterTextSplitter` cuts into 1000-char chunks, 200 overlap.
-- `index_chunks` (`src/db_management/chroma_db.py`) — embeds chunks with `all-MiniLM-L6-v2` (sentence-transformers, local), stores in persistent ChromaDB collection `insurance_docs`.
+**0. (Optional) Grab web pages as PDFs** (`scripts/url_to_pdf.py`):
 
-**2. Ask** (`main.py`):
+- Single page: `python scripts/url_to_pdf.py https://example.com`
+- Whole site (follows all same-domain links): `python scripts/url_to_pdf.py https://example.com --crawl`
+- Saves one PDF per page into `pdfs/` (uses headless Chromium via Playwright).
 
-- Opens same ChromaDB collection.
-- `setup_rag_agents` (`src/agents/rag_agents.py`) builds two Autogen agents:
-  - `RetrieveUserProxyAgent` — retrieves relevant chunks from Chroma.
-  - `AssistantAgent` — LLM writes final answer, cites snippets.
-- `initiate_chat` fires a hardcoded question ("what are the 529 SAVINGS PLANS?").
+**1. Index ALL PDFs** (`scripts/run_indexer.py`) — run after adding/updating PDFs:
+
+- Loops over **every** `*.pdf` in `pdfs/`.
+- `process_single_pdf` (`src/data_processing/processor.py`) — pdfplumber pulls text + tables per page, then `chunk_text` cuts into 1000-char chunks, 200 overlap.
+- `index_chunks` (`src/db_management/chroma_db.py`) — embeds chunks with `all-MiniLM-L6-v2` (sentence-transformers, local) and **upserts** into the persistent ChromaDB collection `documents` (idempotent, so re-running just adds new files).
+
+**2. Ask across all PDFs** (`main.py`):
+
+- Opens the same ChromaDB collection (every indexed PDF).
+- Retrieves the top-`TOP_K` most relevant chunks **from across all documents**.
+- Sends them to the LLM (`gpt-4o-mini`) which answers and cites the source file(s).
+- Interactive loop, or one-shot: `python main.py "your question"`.
 
 ## Pieces
 
 | File | Job |
 |------|-----|
-| `config.py` | keys, paths, chunk sizes, model names, prompt |
+| `config.py` | key, paths, chunk sizes, model, prompt, `TOP_K` |
+| `scripts/url_to_pdf.py` | URL/site → PDF into `pdfs/` |
+| `scripts/run_indexer.py` | index every PDF in `pdfs/` |
 | `src/data_processing/processor.py` | PDF → text → chunks |
-| `src/db_management/chroma_db.py` | vector DB client + index |
-| `src/agents/rag_agents.py` | Autogen retrieval + assistant agents |
-| `main.py` | run the chat |
+| `src/db_management/chroma_db.py` | vector DB client + upsert index |
+| `main.py` | ask questions across all PDFs |
+| `src/agents/rag_agents.py` | legacy AutoGen agents (no longer used by `main.py`) |
 | `Dockerfile` | python:3.10-slim container |
 
 ## Config knobs (`config.py`)
 
 - `EMBEDDING_MODEL = "all-MiniLM-L6-v2"` — local sentence-transformers embeddings.
 - `CHUNK_SIZE = 1000`, `CHUNK_OVERLAP = 200`.
-- `CHROMA_COLLECTION_NAME = "insurance_docs"`.
-- `LLM_CONFIG_LIST` — model `gpt-4o-mini`, OpenAI API.
-
-## Confused naming
-
-"Claude/Anthropic" comments in config, but code uses **OpenAI** `gpt-4o-mini` + `OPENAI_API_KEY`. Autogen talks OpenAI API. No Anthropic actually wired. Comments are leftover cruft.
+- `CHROMA_COLLECTION_NAME = "documents"`.
+- `TOP_K = 8` — chunks retrieved per question.
+- `LLM_MODEL = "gpt-4o-mini"` — OpenAI chat model.
 
 ## Run
 
 ```bash
 pip install -r requirements.txt
-export OPENAI_API_KEY="your-key"   # do NOT hardcode
-# drop PDFs into pdfs/
-python scripts/run_indexer.py      # build vector DB
-python main.py                     # ask
+playwright install chromium          # only if you use scripts/url_to_pdf.py
+
+# (optional) pull a site into pdfs/
+python scripts/url_to_pdf.py https://example.com --crawl
+
+# index needs NO API key (local embeddings)
+python scripts/run_indexer.py        # build/refresh vector DB from ALL pdfs
+
+# asking needs your key
+export OPENAI_API_KEY="your-key"     # do NOT hardcode
+python main.py                       # interactive Q&A across all PDFs
+python main.py "what does the site say about leasing?"
 ```
