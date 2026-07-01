@@ -10,44 +10,7 @@ PDFs → parse → chunk → embed → ChromaDB → agent retrieves → LLM answ
 
 ## Architecture — how each RAG concept maps to the code
 
-```mermaid
----
-title: "RAG-Trinity — how each RAG concept maps to the code"
----
-flowchart LR
-    subgraph INDEX["INDEXING · offline, run once — scripts/run_indexer.py"]
-        direction LR
-        D["Documents<br/><i>pdfs/*.pdf</i>"]
-        L["Load / Parse<br/><i>parse_pdf · pdfplumber</i><br/>processor.py"]
-        C["Chunk<br/><i>chunk_text · 1000 / 200</i><br/>processor.py"]
-        E1["Embed<br/><i>all-MiniLM-L6-v2</i><br/>chroma_db.py"]
-        D --> L --> C --> E1
-    end
-
-    VDB[("Vector Store<br/><b>ChromaDB</b><br/>collection: documents")]
-
-    subgraph QUERY["QUERY · online, per question — main.py"]
-        direction LR
-        Q["Question<br/><i>interactive / one-shot</i>"]
-        E2["Embed query<br/><i>all-MiniLM-L6-v2</i>"]
-        R["Retrieve top-K<br/><i>collection.query</i><br/>main.py"]
-        A["Augment<br/><i>build_context → prompt</i><br/>main.py"]
-        G["Generate<br/><i>OpenAI gpt-4o-mini</i><br/>main.py"]
-        ANS["Answer + citations"]
-        Q --> E2 --> R --> A --> G --> ANS
-    end
-
-    E1 -->|upsert vectors| VDB
-    E2 -.->|same embedding space| VDB
-    VDB -->|top-K chunks| R
-
-    classDef index fill:#d6f5d6,stroke:#2e7d32,color:#1b3d1b;
-    classDef query fill:#ffe6c7,stroke:#e08a00,color:#5a3d00;
-    classDef store fill:#e7d6ff,stroke:#7b3fe4,color:#2e1a4a;
-    class D,L,C,E1 index;
-    class Q,E2,R,A,G,ANS query;
-    class VDB store;
-```
+![RAG-Trinity — how each RAG concept maps to the code](docs/architecture.svg)
 
 > Green = offline indexing (retrieve step is built here), purple = the shared vector store, orange = online query (retrieve → augment → generate). Each box names the RAG concept and the code that implements it.
 
