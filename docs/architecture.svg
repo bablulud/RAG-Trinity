@@ -14,12 +14,12 @@
   <rect x="0" y="0" width="1180" height="560" fill="#ffffff"/>
 
   <!-- Title -->
-  <text x="590" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2937">RAG-Trinity  how each RAG concept maps to the code</text>
-  <text x="590" y="56" text-anchor="middle" font-size="13" fill="#6b7280">Green = offline indexing · Purple = shared vector store · Orange = online query</text>
+  <text x="590" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#1f2937">RAG-Trinity - how each RAG concept maps to the code</text>
+  <text x="590" y="56" text-anchor="middle" font-size="13" fill="#6b7280">Green = offline indexing | Purple = shared vector store | Orange = online query</text>
 
   <!-- INDEXING lane -->
   <rect x="40" y="76" width="1100" height="150" rx="12" fill="#e8f6e8" stroke="#2e7d32" stroke-width="1.5"/>
-  <text x="58" y="99" font-size="13" font-weight="700" fill="#2e7d32">INDEXING · offline, run once  scripts/run_indexer.py</text>
+  <text x="58" y="99" font-size="13" font-weight="700" fill="#2e7d32">INDEXING - offline, run once - scripts/run_indexer.py</text>
 
   <!-- Indexing boxes -->
   <g>
@@ -29,12 +29,12 @@
 
     <rect x="320" y="120" width="180" height="80" rx="8" fill="#d6f5d6" stroke="#2e7d32" stroke-width="1.5"/>
     <text x="410" y="147" text-anchor="middle" font-size="14" font-weight="700" fill="#1b3d1b">Load / Parse</text>
-    <text x="410" y="166" text-anchor="middle" font-size="11" font-style="italic" fill="#3d6b3d">parse_pdf · pdfplumber</text>
+    <text x="410" y="166" text-anchor="middle" font-size="11" font-style="italic" fill="#3d6b3d">parse_pdf - pdfplumber</text>
     <text x="410" y="184" text-anchor="middle" font-size="11" fill="#3d6b3d">processor.py</text>
 
     <rect x="570" y="120" width="180" height="80" rx="8" fill="#d6f5d6" stroke="#2e7d32" stroke-width="1.5"/>
     <text x="660" y="147" text-anchor="middle" font-size="14" font-weight="700" fill="#1b3d1b">Chunk</text>
-    <text x="660" y="166" text-anchor="middle" font-size="11" font-style="italic" fill="#3d6b3d">chunk_text · 1000 / 200</text>
+    <text x="660" y="166" text-anchor="middle" font-size="11" font-style="italic" fill="#3d6b3d">chunk_text - 1000 / 200</text>
     <text x="660" y="184" text-anchor="middle" font-size="11" fill="#3d6b3d">processor.py</text>
 
     <rect x="820" y="120" width="180" height="80" rx="8" fill="#d6f5d6" stroke="#2e7d32" stroke-width="1.5"/>
@@ -68,7 +68,7 @@
 
   <!-- QUERY lane -->
   <rect x="40" y="410" width="1100" height="120" rx="12" fill="#fff2e0" stroke="#e08a00" stroke-width="1.5"/>
-  <text x="58" y="433" font-size="13" font-weight="700" fill="#b36b00">QUERY · online, per question  main.py</text>
+  <text x="58" y="433" font-size="13" font-weight="700" fill="#b36b00">QUERY - online, per question - main.py</text>
 
   <!-- Query boxes -->
   <g>
@@ -87,7 +87,7 @@
 
     <rect x="600" y="448" width="150" height="66" rx="8" fill="#ffe6c7" stroke="#e08a00" stroke-width="1.5"/>
     <text x="675" y="472" text-anchor="middle" font-size="13" font-weight="700" fill="#5a3d00">Augment</text>
-    <text x="675" y="490" text-anchor="middle" font-size="10" font-style="italic" fill="#7a5410">build_context ’ prompt</text>
+    <text x="675" y="490" text-anchor="middle" font-size="10" font-style="italic" fill="#7a5410">build_context to prompt</text>
     <text x="675" y="505" text-anchor="middle" font-size="10" fill="#7a5410">main.py</text>
 
     <rect x="780" y="448" width="150" height="66" rx="8" fill="#ffe6c7" stroke="#e08a00" stroke-width="1.5"/>

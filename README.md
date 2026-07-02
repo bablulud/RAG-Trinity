@@ -10,7 +10,7 @@ PDFs → parse → chunk → embed → ChromaDB → agent retrieves → LLM answ
 
 ## Architecture — how each RAG concept maps to the code
 
-![RAG-Trinity — how each RAG concept maps to the code](docs/architecture.svg)
+![RAG-Trinity — how each RAG concept maps to the code](docs/architecture.png)
 
 > Green = offline indexing (retrieve step is built here), purple = the shared vector store, orange = online query (retrieve → augment → generate). Each box names the RAG concept and the code that implements it.
 
